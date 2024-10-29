@@ -18,15 +18,14 @@ def chat_with_bot():
         response_ids = model.generate(
             inputs['input_ids'], 
             attention_mask=inputs['attention_mask'],
-            max_length=50,  # Limit max length to reduce verbosity
+            max_length=50,
             do_sample=True,
-            temperature=0.7,  # Controls randomness (0.7 is moderate)
-            repetition_penalty=1.2,  # Discourages repetition
+            temperature=0.7,
+            repetition_penalty=1.2,
             pad_token_id=tokenizer.eos_token_id
         )
         
         response = tokenizer.decode(response_ids[:, inputs['input_ids'].shape[-1]:][0], skip_special_tokens=True)
         print(f"Your contact: {response}")
-
 
 chat_with_bot()
