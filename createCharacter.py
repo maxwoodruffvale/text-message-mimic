@@ -4,6 +4,7 @@ import os
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
 from datasets import Dataset
+from peft import LoraConfig, get_peft_model
 
 phone_number = sys.argv[1]
 
@@ -12,24 +13,48 @@ conn = sqlite3.connect(db_path)
 
 cursor=conn.cursor()
 
-query = f"""
-SELECT message.is_from_me, message.text
+query2 = f"""
+SELECT message.is_from_me, message.text, message.attributedBody
 FROM message
-JOIN handle ON message.handle_id = handle.ROWID
+LEFT JOIN handle ON message.handle_id = handle.ROWID
 WHERE handle.id = '+1{phone_number}'
-AND message.text IS NOT NULL
-ORDER BY message.date ASC;
+ORDER BY message.date ASC
+LIMIT 50000;
 """
+#remove limit for actual but i think this would cook my computer like crazy
 
 cursor.execute(query)
-
 results = cursor.fetchall()
+
+updated_results = []
+
+for result in results:
+    if(result[1] is not None): # the text is plain to see
+        updated_results.append(result[0:1])
+        continue
+
+    if(result[2] is None): # no attribute body
+        continue
+    else:
+        attributed_body = result[2].decode('utf-8', errors='replace')
+        if "NSNumber" in str(attributed_body):
+                attributed_body = str(attributed_body).split("NSNumber")[0]
+                if "NSString" in attributed_body:
+                    attributed_body = str(attributed_body).split("NSString")[1]
+                    if "NSDictionary" in attributed_body:
+                        attributed_body = str(attributed_body).split("NSDictionary")[0]
+                        attributed_body = attributed_body[6:-12]
+                        updated_results.append([result[0], attributed_body])
+
+cursor.close()
+conn.close()
+
 with open('message_conversation.txt', 'w') as file:
-    speaker=results[0][0]
-    prev_speaker=results[0][0]
-    message=str(results[0][0]) + ": "
-    for row in results:
-        if(row[1].startswith('Loved ')):
+    speaker=updated_results[0][0]
+    prev_speaker=updated_results[0][0]
+    message=str(updated_results[0][0]) + ": "
+    for row in updated_results:
+        if(row[1] is None or row[1] == "￼" or row[1].startswith('Loved ')):
             continue
         
         speaker = row[0]
@@ -40,14 +65,11 @@ with open('message_conversation.txt', 'w') as file:
             message = str(speaker) + ": " + row[1] + ". "
         prev_speaker = speaker
 
-cursor.close()
-conn.close()
 
 print("Conversation Data gathered succesfully")
 
-
 model_name = "gpt2"
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=False)
 model = GPT2LMHeadModel.from_pretrained(model_name)
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
@@ -57,7 +79,14 @@ model.to(device)
 tokenizer.pad_token = tokenizer.eos_token
 model.resize_token_embeddings(len(tokenizer))
 
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    lora_dropout=0.1,
+    target_modules=["attn.c_attn", "attn.c_proj"],
+)
 
+model = get_peft_model(model, lora_config)
 
 def load_data(file_path):
     dialogues = []
@@ -99,7 +128,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=8,
     logging_dir='./logs',
-    logging_steps=10,
+    logging_steps=500,
     save_steps=500,
     save_total_limit=2,
     evaluation_strategy="no",
