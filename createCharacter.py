@@ -4,6 +4,8 @@ import os
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
 from datasets import Dataset
+from peft import LoraConfig, get_peft_model
+
 
 phone_number = sys.argv[1]
 
@@ -47,7 +49,7 @@ print("Conversation Data gathered succesfully")
 
 
 model_name = "gpt2"
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=False)
 model = GPT2LMHeadModel.from_pretrained(model_name)
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
@@ -57,7 +59,14 @@ model.to(device)
 tokenizer.pad_token = tokenizer.eos_token
 model.resize_token_embeddings(len(tokenizer))
 
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    lora_dropout=0.1,
+    target_modules=["attn.c_attn", "attn.c_proj"],
+)
 
+model = get_peft_model(model, lora_config)
 
 def load_data(file_path):
     dialogues = []
@@ -99,7 +108,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=8,
     logging_dir='./logs',
-    logging_steps=10,
+    logging_steps=500,
     save_steps=500,
     save_total_limit=2,
     evaluation_strategy="no",
