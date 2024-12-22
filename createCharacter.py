@@ -68,10 +68,10 @@ with open('message_conversation.txt', 'w') as file:
 print("Conversation Data gathered succesfully")
 
 model_name = "gpt2"
-tokenizer = GPT2Tokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=False)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 model = GPT2LMHeadModel.from_pretrained(model_name)
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("running on: " + str(device))
 model.to(device)
 
@@ -83,12 +83,10 @@ def load_data(file_path):
     with open(file_path, 'r') as f:
         dialogue = ""
         for line in f.readlines():
-            
             if(': ' not in line):
                 continue
             if(len(line.strip().split(': ')) < 2):
                 continue
-            
             if line.startswith("1:"):
                 dialogue += line.strip().split(": ")[1] + " <|endoftext|> "  # Add end token after user input
             elif line.startswith("0:"):
@@ -98,30 +96,30 @@ def load_data(file_path):
     return dialogues
 
 dialogues = load_data('message_conversation.txt')
+print(dialogues[:5])  # Check the first few dialogues for correctness
 
 def tokenize_data(dialogues):
-    tokenized_dialogues = tokenizer(dialogues, return_tensors='pt', truncation=True, padding=True, max_length=128)
+    tokenized_dialogues = tokenizer(dialogues, return_tensors='pt', truncation=True, padding=True)
     input_ids = tokenized_dialogues['input_ids']
-    
     labels = input_ids.clone()
     labels[labels == tokenizer.pad_token_id] = -100
-    
     return {'input_ids': input_ids, 'attention_mask': tokenized_dialogues['attention_mask'], 'labels': labels}
 
 tokenized_data = tokenize_data(dialogues)
 dataset = Dataset.from_dict(tokenized_data)
+
 print("Data tokenized succesfuly")
 
 training_args = TrainingArguments(
-    output_dir='./results',
-    num_train_epochs=3,
-    per_device_train_batch_size=2,
-    gradient_accumulation_steps=8,
-    logging_dir='./logs',
-    logging_steps=50,
-    save_steps=500,
-    save_total_limit=2,
-    evaluation_strategy="no",
+    output_dir = './results',
+    num_train_epochs = 3,
+    per_device_train_batch_size = 4,
+    logging_dir = './logs',
+    logging_steps = 10,
+    save_steps = 500,
+    save_total_limit = 2,
+    evaluation_strategy = "no",
+    no_cuda = True,
 )
 
 trainer = Trainer(
