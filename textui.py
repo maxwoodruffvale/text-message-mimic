@@ -3,6 +3,7 @@ import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import tkinter.messagebox 
 import os
+from createCharacterFunctions import gather_data, train_model
 
 def send_message(event=None):  
     user_message = user_input.get()
@@ -35,11 +36,11 @@ def set_contact():
                 default=tkinter.messagebox.NO  # Set "No" as the default button
             )
             if(result):
-                #retrain model
                 print("retrain model please for " + contact_name)
-
+                gather_data(contact_name)
+                print("training may take a while") # this is where you add a loading screen to the ui
+                train_model(contact_name)
             else:
-                #don't retrain
                 return
     
         chat_window.config(state=tk.NORMAL)

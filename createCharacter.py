@@ -133,7 +133,9 @@ trainer.train()
 
 print("Training loop complete")
 
-model.save_pretrained("./character")
-tokenizer.save_pretrained("./character")
+save_name = "model" + phone_number
+
+model.save_pretrained("./model" + phone_number)
+tokenizer.save_pretrained("./model"+phone_number)
 
 print("Character created! To talk with them, run: python3 chat.py")
