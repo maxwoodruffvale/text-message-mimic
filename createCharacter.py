@@ -4,6 +4,8 @@ import os
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
 from datasets import Dataset
+import time
+
 
 phone_number = sys.argv[1]
 
@@ -20,7 +22,6 @@ WHERE handle.id = '+1{phone_number}'
 ORDER BY message.date ASC
 LIMIT 5000;
 """
-#remove limit for actual but i think this would cook my computer like crazy
 
 cursor.execute(query)
 results = cursor.fetchall()
@@ -67,11 +68,12 @@ with open('message_conversation.txt', 'w') as file:
 
 print("Conversation Data gathered succesfully")
 
-model_name = "gpt2"
+start_time = time.time()
+
+model_name = "distilgpt2"
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 model = GPT2LMHeadModel.from_pretrained(model_name)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print("running on: " + str(device))
 model.to(device)
 
@@ -96,7 +98,6 @@ def load_data(file_path):
     return dialogues
 
 dialogues = load_data('message_conversation.txt')
-print(dialogues[:5])  # Check the first few dialogues for correctness
 
 def tokenize_data(dialogues):
     tokenized_dialogues = tokenizer(dialogues, return_tensors='pt', truncation=True, padding=True)
@@ -111,15 +112,14 @@ dataset = Dataset.from_dict(tokenized_data)
 print("Data tokenized succesfuly")
 
 training_args = TrainingArguments(
-    output_dir = './results',
-    num_train_epochs = 3,
-    per_device_train_batch_size = 4,
-    logging_dir = './logs',
-    logging_steps = 10,
-    save_steps = 500,
-    save_total_limit = 2,
-    evaluation_strategy = "no",
-    no_cuda = True,
+    output_dir='./results',
+    num_train_epochs=3,
+    per_device_train_batch_size=4,
+    logging_dir='./logs',
+    logging_steps=50,
+    save_steps=500,
+    save_total_limit=2,
+    learning_rate=5e-5,
 )
 
 trainer = Trainer(
@@ -139,3 +139,6 @@ model.save_pretrained("./model" + phone_number)
 tokenizer.save_pretrained("./model"+phone_number)
 
 print("Character created! To talk with them, run: python3 chat.py")
+
+end_time = time.time()
+print(f"Execution time: {end_time - start_time} seconds")
