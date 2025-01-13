@@ -11,7 +11,6 @@ def gather_data(phone_number, limit=5000):
     conn = sqlite3.connect(db_path)
 
     cursor=conn.cursor()
-
     query = f"""
     SELECT message.is_from_me, message.text, message.attributedBody
     FROM message
@@ -20,7 +19,15 @@ def gather_data(phone_number, limit=5000):
     ORDER BY message.date ASC
     LIMIT {limit};
     """
-    #remove limit for actual but i think this would cook my computer like crazy
+
+    if(limit == -1):
+        query = f"""
+        SELECT message.is_from_me, message.text, message.attributedBody
+        FROM message
+        LEFT JOIN handle ON message.handle_id = handle.ROWID
+        WHERE handle.id = '+1{phone_number}'
+        ORDER BY message.date ASC;
+        """
 
     cursor.execute(query)
     results = cursor.fetchall()
@@ -29,7 +36,7 @@ def gather_data(phone_number, limit=5000):
     conn.close()
 
     updated_results = []
-    
+
     for result in results:
         if(result[1] is not None): # the text is plain to see
             updated_results.append(result[0:1])
@@ -87,11 +94,11 @@ def train_model(phone_number):
     training_args = TrainingArguments(
         output_dir = './results',
         num_train_epochs = 3,
-        per_device_train_batch_size = 2,
+        per_device_train_batch_size = 4,
         logging_dir = './logs',
-        logging_steps = 50,
-        save_steps = 500,
-        save_total_limit = 2,
+        logging_steps = 200,
+        save_steps = 0,
+        save_total_limit = 1,
         learning_rate=5e-5,
         evaluation_strategy = "no",
     )

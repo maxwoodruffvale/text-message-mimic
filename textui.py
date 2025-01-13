@@ -80,16 +80,19 @@ def set_contact():
         chat_window.config(state=tk.DISABLED)
         contact_input.delete(0, tk.END)
 
-def handle_result(result):
+def handle_result(result, uncapped):
     contact_name = contact_input.get().strip()
-    
     data_amount = 3000
-    if result < 0:
-        data_amount = 3000
-    elif result > 100:
-        data_amount = 20000
+
+    if(uncapped):
+        data_amount = -1
     else:
-        data_amount = int(result * 170) + 3000
+        if result < 0:
+            data_amount = 3000
+        elif result > 100:
+            data_amount = 20000
+        else:
+            data_amount = int(result * 170) + 3000
     print(data_amount)
     thread = threading.Thread(target=fine_tune_model, args=(contact_name, data_amount), daemon=True)
     thread.start()
@@ -131,7 +134,7 @@ def open_custom_message_box():
     def on_submit():
         value = slider.get()
         custom_box.destroy()
-        handle_result(value)
+        handle_result(value, uncapped_var.get())
     
     def on_cancel():
         custom_box.destroy()
@@ -154,19 +157,22 @@ def open_custom_message_box():
         slider_frame,
         from_=0, to=100,
         orient="horizontal",
-        length=100,          # Slider length
-        sliderlength=20,     # Size of the slider knob
-        width=20,            # Thickness of the scale line
-        highlightthickness=0, # Removes border highlight
-        bg="#f0f0f0",        # Background color
-        troughcolor="#cccccc", # Color of the trough
-        fg="#333333"         # Text color
+        length=100,          
+        sliderlength=20,     
+        width=20,            
+        highlightthickness=0,
+        bg="#f0f0f0",
+        troughcolor="#cccccc",
+        fg="#333333"
     )
     slider.pack(side="left", expand=True, fill="x")
 
     max_label = tk.Label(slider_frame, text="text later\n(a few hours)\nbest accuracy")
     max_label.pack(side="left", padx=5)
-
+    
+    uncapped_var = tk.IntVar()
+    uncapped_checkbox = tk.Checkbutton(custom_box, text="Max/Uncapped Messages", variable=uncapped_var)
+    uncapped_checkbox.pack(pady=10)
 
     buttons_frame = tk.Frame(custom_box)
     buttons_frame.pack(pady=10, padx=20, fill="x")
