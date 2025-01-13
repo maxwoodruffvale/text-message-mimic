@@ -2,10 +2,11 @@ import sys
 import sqlite3
 import os
 import torch
-from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
+from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments, TrainerCallback
 from datasets import Dataset
 
-def gather_data(phone_number, limit=1000):
+
+def gather_data(phone_number, limit=5000):
     db_path = os.path.expanduser('~/Library/Messages/chat.db')
     conn = sqlite3.connect(db_path)
 
@@ -63,12 +64,12 @@ def gather_data(phone_number, limit=1000):
 
 
 def train_model(phone_number):
-    model_name = "gpt2"
+    model_name = "distilgpt2"
     global tokenizer
     tokenizer = GPT2Tokenizer.from_pretrained(model_name)
     model = GPT2LMHeadModel.from_pretrained(model_name)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     print("running on: " + str(device))
     model.to(device)
 
@@ -86,14 +87,15 @@ def train_model(phone_number):
     training_args = TrainingArguments(
         output_dir = './results',
         num_train_epochs = 1,
-        per_device_train_batch_size = 4,
+        per_device_train_batch_size = 2,
         logging_dir = './logs',
         logging_steps = 50,
         save_steps = 500,
         save_total_limit = 2,
+        learning_rate=5e-5,
         evaluation_strategy = "no",
-        no_cuda = True,
     )
+
 
     trainer = Trainer(
         model=model,
@@ -108,7 +110,6 @@ def train_model(phone_number):
 
     model.save_pretrained("./model" + str(phone_number))
     tokenizer.save_pretrained("./model" + str(phone_number))
-
 
 #helpers
 def load_data(file_path):

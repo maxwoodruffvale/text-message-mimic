@@ -1,10 +1,14 @@
 import torch
+import sys
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from peft import PeftConfig, PeftModel, get_peft_model
 
-model = GPT2LMHeadModel.from_pretrained('./character')
-tokenizer = GPT2Tokenizer.from_pretrained('./character')
+phone_number = sys.argv[1]
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = GPT2LMHeadModel.from_pretrained('./model' + phone_number)
+tokenizer = GPT2Tokenizer.from_pretrained('./model' + phone_number)
+
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 model.to(device)
 
 def chat_with_bot():
